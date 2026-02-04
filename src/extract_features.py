@@ -69,3 +69,34 @@ def extract_patient_info(filepath: Path) -> Dict:
         'encounters': encounters,
         'conditions': conditions
     }
+
+
+def calculate_readmission_labels(encounters: List[Dict]) -> List[Dict]:
+  inpatient = [e for e in encounters if e['type'] in ['IMP', 'EMER', 'inpatient', 'emergency']] 
+  inpatient.sort(key=lambda x:x['start']) #lambda -> one use function
+
+  discharge_events = [] 
+
+  for i, encounter in enumerate(inpatient):
+    #get discharge dates 
+    if encounter['end']:
+      discharge_date = parse_date(encounter['end'])
+    else:
+      discharge_date = parse_date(encounter['start'])
+    
+    is_readmitted = False 
+    for future_encounter in inpatient[i+1:]:
+      future_start = parse_date(future_encounter['start'])
+      days_diff = (future_start - discharge_date).days
+
+      if 0 < days_diff <= 30:
+        is_readmitted = True 
+        break 
+    
+    discharge_events.append({
+            'discharge_date': discharge_date.isoformat(),
+            'encounter_type': encounter['type'],
+            'is_readmitted_30_days': is_readmitted
+        })
+
+  return discharge_events 
